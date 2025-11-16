@@ -92,11 +92,9 @@ class EvoStrategy(Module):
         self.noise_scale = noise_scale
         self.learning_rate = learning_rate
 
-        self.register_buffer('_dummy', tensor(0), persistent = False)
-
     @property
     def device(self):
-        return self._dummy.device
+        return self.accelerate.device
 
     def print(self, *args, **kwargs):
         return self.accelerate.print(*args, **kwargs)
@@ -116,7 +114,7 @@ class EvoStrategy(Module):
             seeds_for_population = tensor(seeds_for_population)
 
         fitnesses = fitnesses.to(self.device)
-        seeds_for_population.to(self.device)
+        seeds_for_population = seeds_for_population.to(self.device)
 
         # they use a simple z-score for the fitnesses, need to figure out the natural ES connection
 
@@ -145,7 +143,7 @@ class EvoStrategy(Module):
         self
     ):
 
-        model = self.noisable_model
+        model = self.noisable_model.to(self.device)
 
         for index in range(self.num_generations):
             generation = index + 1

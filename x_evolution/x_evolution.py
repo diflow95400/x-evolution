@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Callable
-
 from math import ceil
 from pathlib import Path
 
@@ -57,6 +56,7 @@ class EvoStrategy(Module):
         checkpoint_path = './checkpoints',
         cpu = False,
         accelerate_kwargs: dict = dict(),
+        reject_generation_fitnesses_if: Callable[[Tensor], bool] | None = None
     ):
         super().__init__()
 
@@ -107,6 +107,10 @@ class EvoStrategy(Module):
 
         self.noise_scale = noise_scale
         self.learning_rate = learning_rate
+
+        # rejecting the fitnesses for a certain generation if this function is true
+
+        self.reject_generation_fitnesses_if = reject_generation_fitnesses_if
 
         # checkpointing
 
@@ -193,8 +197,9 @@ class EvoStrategy(Module):
 
         # through many generations
 
-        for index in range(self.num_generations):
-            generation = index + 1
+        generation = 1
+
+        while generation <= self.num_generations:
 
             # predetermine the seeds for each population
             # each seed is then used as a seed for all the parameters
@@ -244,6 +249,12 @@ class EvoStrategy(Module):
             if is_distributed:
                 fitnesses = self.accelerate.gather(fitnesses)
 
+            # validate fitnesses
+
+            if exists(self.reject_generation_fitnesses_if) and self.reject_generation_fitnesses_if(fitnesses):
+                self.print(f'[{generation}] fitnesses rejected')
+                continue
+
             # pass fitnesses to evolve function
 
             self.evolve_(
@@ -262,6 +273,10 @@ class EvoStrategy(Module):
                 divisible_by(generation, self.checkpoint_every)
             ):
                 self.checkpoint(f'evolved.model.{generation}.pt')
+
+            # increment generation
+
+            generation += 1
 
         self.print('evolution complete')
 

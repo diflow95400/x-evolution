@@ -17,8 +17,9 @@ def test_evo_strat(
     evo_strat = EvoStrategy(
         model,
         environment = lambda model: float(randrange(100)),
-        num_generations = 10,
+        num_generations = 1,
         params_to_optimize = params_to_optimize
     )
 
-    evo_strat()
+    evo_strat('evolve')
+    evo_strat('more.evolve')

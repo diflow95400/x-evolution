@@ -176,7 +176,8 @@ class EvoStrategy(Module):
 
     @torch.inference_mode()
     def forward(
-        self
+        self,
+        filename = 'evolved.model'
     ):
 
         model = self.noisable_model.to(self.device)
@@ -272,7 +273,7 @@ class EvoStrategy(Module):
                 exists(self.checkpoint_every) and
                 divisible_by(generation, self.checkpoint_every)
             ):
-                self.checkpoint(f'evolved.model.{generation}.pt')
+                self.checkpoint(f'{filename}.{generation}.pt')
 
             # increment generation
 
@@ -280,6 +281,6 @@ class EvoStrategy(Module):
 
         self.print('evolution complete')
 
-        self.checkpoint(f'evolved.model.final.pt')
+        self.checkpoint(f'{filename}.final.{generation}')
 
         self.accelerate.end_training()

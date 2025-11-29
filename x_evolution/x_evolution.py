@@ -52,6 +52,7 @@ class EvoStrategy(Module):
         learning_rate = 1e-3,
         noise_scale = 1e-3,                 # the noise scaling during rollouts with environment, todo - figure out right value and make sure it can also be customized per parameter name through a dict
         params_to_optimize: list[str] | Module | list[Module] | list[Parameter] | None = None,
+        noise_low_rank: int | None = None,
         use_optimizer = False,
         optimizer_klass = Adam,
         optimizer_kwargs: dict = dict(),
@@ -67,7 +68,7 @@ class EvoStrategy(Module):
         self.accelerate = Accelerator(cpu = cpu, **accelerate_kwargs)
 
         self.model = model
-        self.noisable_model = Noisable(model)
+        self.noisable_model = Noisable(model, low_rank = noise_low_rank)
 
         self.environment = environment
 

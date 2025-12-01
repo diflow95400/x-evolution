@@ -227,7 +227,8 @@ class EvoStrategy(Module):
     @torch.inference_mode()
     def forward(
         self,
-        filename = 'evolved.model'
+        filename = 'evolved.model',
+        num_generations = None
     ):
 
         model = self.noisable_model.to(self.device)
@@ -248,9 +249,11 @@ class EvoStrategy(Module):
 
         # through many generations
 
+        num_generations = default(num_generations, self.num_generations)
+
         generation = 1
 
-        while generation <= self.num_generations:
+        while generation <= num_generations:
 
             # predetermine the seeds for each population
             # each seed is then used as a seed for all the parameters

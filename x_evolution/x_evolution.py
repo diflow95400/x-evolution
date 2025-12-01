@@ -59,6 +59,7 @@ class EvoStrategy(Module):
         params_to_optimize: list[str] | Module | list[Module] | list[Parameter] | None = None,
         noise_low_rank: int | None = None,
         use_optimizer = False,
+        rollout_fixed_seed = False,
         optimizer_klass = AdamAtan2,
         optimizer_kwargs: dict = dict(),
         transform_fitness: Callable = identity,
@@ -130,6 +131,10 @@ class EvoStrategy(Module):
         self.noise_scale = noise_scale
 
         self.learning_rate = learning_rate
+
+        # rolling out with a fixed seed
+
+        self.rollout_fixed_seed = rollout_fixed_seed
 
         # maybe use optimizer to update, allow for Adam
 
@@ -247,24 +252,30 @@ class EvoStrategy(Module):
 
         noise_indices = arange(pop_size_round_up).chunk(world_size)[rank]
 
+        # maybe synced seed
+
+        def maybe_get_synced_seed():
+            seed = randint(0, int(1e9), (), device = self.device)
+
+            if is_distributed:
+                seed = self.accelerate.reduce(seed, reduction = 'sum')
+
+            return seed.item()
+
         # through many generations
 
         num_generations = default(num_generations, self.num_generations)
 
         generation = 1
 
+        # loop through generations
+
         while generation <= num_generations:
 
             # predetermine the seeds for each population
             # each seed is then used as a seed for all the parameters
 
-            synced_seed = None
-
-            if is_distributed:
-                seed_for_pop = randint(0, int(1e9), (), device = self.device)
-                synced_seed = self.accelerate.reduce(seed_for_pop, reduction = 'sum').item()
-
-            seeds_for_population = with_seed(synced_seed)(randint)(0, MAX_SEED_VALUE, (pop_size_round_up,))
+            seeds_for_population = with_seed(maybe_get_synced_seed())(randint)(0, MAX_SEED_VALUE, (pop_size_round_up,))
 
             # divy up work across machine
 
@@ -283,6 +294,10 @@ class EvoStrategy(Module):
 
                 return fitness
 
+            # seeds
+
+            maybe_rollout_seed = maybe_get_synced_seed() if self.rollout_fixed_seed else None
+
             # now loop through the entire population of noise
 
             for noise_index, individual_seed in zip(noise_indices, seeds_for_machine):
@@ -296,8 +311,10 @@ class EvoStrategy(Module):
                 noise_config = dict(zip(self.param_names_to_optimize, individual_param_seeds.tolist()))
                 noise_config = {param_name: (seed, self.noise_scale) for param_name, seed in noise_config.items()}
 
+                # maybe roll out with a fixed seed
+
                 with model.temp_add_noise_(noise_config):
-                    fitness = rollout_for_fitness()
+                    fitness = with_seed(maybe_rollout_seed)(rollout_for_fitness)()
 
                 if not self.mirror_sampling:
                     fitnesses.append(fitness)
@@ -306,7 +323,7 @@ class EvoStrategy(Module):
                 # handle mirror sampling
 
                 with model.temp_add_noise_(noise_config, negate = True):
-                    fitness_mirrored = rollout_for_fitness()
+                    fitness_mirrored = with_seed(maybe_rollout_seed)(rollout_for_fitness)()
 
                 fitnesses.append([fitness, fitness_mirrored])
 

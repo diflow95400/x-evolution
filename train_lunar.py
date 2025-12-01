@@ -41,7 +41,8 @@ class LunarEnvironment(Module):
 
         device = next(model.parameters()).device
 
-        state, _ = self.env.reset()
+        seed = torch.randint(0, int(1e6), ())
+        state, _ = self.env.reset(seed = seed.item())
 
         step = 0
         cum_reward = 0.
@@ -91,9 +92,10 @@ evo_strat = EvoStrategy(
     mirror_sampling = True,
     num_generations = 50_000,
     noise_population_size = 30,
-    noise_low_rank = 5,
+    noise_low_rank = 1,
     noise_scale = 1e-1,
-    learning_rate = 1e-3,
+    learning_rate = 2e-4,
+    rollout_fixed_seed = True
 )
 
 evo_strat()

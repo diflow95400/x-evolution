@@ -39,7 +39,7 @@ def divisible_by(num, den):
     return (num % den) == 0
 
 def normalize(t, eps = 1e-6):
-    return F.layer_norm(t, t.shape[-1:], eps = eps)
+    return F.layer_norm(t, t.shape, eps = eps)
 
 # class
 
@@ -180,24 +180,24 @@ class EvoStrategy(Module):
         if exists(self.transform_fitness):
             fitnesses = self.transform_fitness(fitnesses)
 
-        # they use a simple z-score for the fitnesses, need to figure out the natural ES connection
+        # maybe normalize the fitness with z-score
+
+        fitnesses = self.fitness_to_weighted_factor(fitnesses)
 
         if self.mirror_sampling:
             fitness_pos, fitness_neg = fitnesses.unbind(dim = -1)
-            fitness_diff = fitness_pos - fitness_neg
-
-            noise_weights = self.fitness_to_weighted_factor(fitness_diff)
+            weights = fitness_pos - fitness_neg
         else:
-            noise_weights = self.fitness_to_weighted_factor(fitnesses)
+            weights = fitnesses
 
-        noise_weights /= self.noise_scale
+        weights /= self.noise_scale
 
         if not use_optimizer:
-            noise_weights *= self.learning_rate # some learning rate that subsumes another constant
+            weights *= self.learning_rate # some learning rate that subsumes another constant
 
         # update one seed at a time for enabling evolutionary strategy for large models
 
-        for individual_seed, noise_weight in zip(seeds_for_population.tolist(), noise_weights.tolist()):
+        for individual_seed, weight in zip(seeds_for_population.tolist(), weights.tolist()):
 
             individual_param_seeds = with_seed(individual_seed)(torch.randint)(0, MAX_SEED_VALUE, (self.num_params,))
 
@@ -205,7 +205,7 @@ class EvoStrategy(Module):
 
             # set the noise weight
 
-            noise_config = {param_name: (seed, noise_weight) for param_name, seed in noise_config.items()}
+            noise_config = {param_name: (seed, weight) for param_name, seed in noise_config.items()}
 
             # now update
 

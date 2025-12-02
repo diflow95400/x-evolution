@@ -12,7 +12,6 @@ import gymnasium as gym
 import torch
 from torch.nn import Module
 import torch.nn.functional as F
-from torch.optim import SGD
 
 class LunarEnvironment(Module):
     def __init__(
@@ -86,20 +85,11 @@ actor = ResidualNormedMLP(
 evo_strat = EvoStrategy(
     actor,
     environment = LunarEnvironment(),
-    use_optimizer = True,
-    optimizer_klass = SGD,
-    optimizer_kwargs = dict(
-        momentum = 0.1,
-        nesterov = True,
-        weight_decay = 1e-2
-    ),
-    mirror_sampling = True,
     num_generations = 50_000,
     noise_population_size = 60,
     noise_low_rank = 2,
     noise_scale = 1e-1,
-    learning_rate = 1e-3,
-    rollout_fixed_seed = True
+    learning_rate = 1e-3
 )
 
 evo_strat()

@@ -47,8 +47,6 @@ def loss_mnist(model):
 
 # evo
 
-from torch.optim import SGD
-
 from x_evolution import EvoStrategy
 
 evo_strat = EvoStrategy(

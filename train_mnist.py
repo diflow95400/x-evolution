@@ -16,6 +16,7 @@ model = nn.Sequential(
     nn.ReLU(),
     nn.Linear(128, 64),
     nn.ReLU(),
+    nn.LayerNorm(64, bias = False),
     nn.Linear(64, 10),
 )
 
